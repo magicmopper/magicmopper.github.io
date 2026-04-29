@@ -1,0 +1,262 @@
+{{ define "body-class" }}page-about{{ end }}
+{{ define "main" }}
+{{- $pages := sort (where .Site.RegularPages "Type" "in" (slice "post" "photography")) "Date" "asc" -}}
+{{- $publishedPages := where $pages "Date" "ne" nil -}}
+{{- $totalPosts := len $publishedPages -}}
+{{- $dayCounts := dict -}}
+{{- $heatmapItems := slice -}}
+{{- range $publishedPages -}}
+    {{- $key := .Date.Format "2006-01-02" -}}
+    {{- $current := index $dayCounts $key | default 0 -}}
+    {{- $dayCounts = merge $dayCounts (dict $key (add $current 1)) -}}
+    {{- $heatmapItems = $heatmapItems | append (dict
+        "date" $key
+        "wordCount" .WordCount
+        "link" .RelPermalink
+        "title" .Title
+    ) -}}
+{{- end -}}
+{{- $activeDays := len $dayCounts -}}
+{{- $firstPost := index $publishedPages 0 -}}
+{{- $latestPost := index $publishedPages (sub (len $publishedPages) 1) -}}
+{{- $tagItems := slice -}}
+{{- $maxTagCount := 1 -}}
+{{- with .Site.Taxonomies.tags -}}
+    {{- $sortedTags := .ByCount -}}
+    {{- if gt (len $sortedTags) 0 -}}
+        {{- $maxTagCount = (index $sortedTags 0).Count -}}
+    {{- end -}}
+    {{- range $sortedTags -}}
+        {{- $weight := 3 -}}
+        {{- if gt $maxTagCount 1 -}}
+            {{- $scaled := div (mul .Count 100) $maxTagCount -}}
+            {{- $weight = cond (ge $scaled 88) 5 (cond (ge $scaled 70) 4 (cond (ge $scaled 52) 3 (cond (ge $scaled 34) 2 1))) -}}
+        {{- end -}}
+        {{- $size := cond (eq $weight 5) "10.8" (cond (eq $weight 4) "9.8" (cond (eq $weight 3) "8.8" (cond (eq $weight 2) "7.8" "6.9"))) -}}
+        {{- $tagItems = $tagItems | append (dict
+            "label" .Page.Title
+            "count" .Count
+            "permalink" .Page.RelPermalink
+            "weight" $weight
+            "size" $size
+        ) -}}
+    {{- end -}}
+{{- end -}}
+
+<article class="about-page">
+    <header class="about-page__hero">
+        <p class="about-page__eyebrow">About This Blog</p>
+        <h1 class="about-page__title">{{ .Title }}</h1>
+    </header>
+
+    <section class="about-stats">
+        <article class="about-stat-card">
+            <span class="about-stat-card__label">累计发布</span>
+            <strong class="about-stat-card__value">{{ $totalPosts }}</strong>
+            <span class="about-stat-card__meta">篇内容</span>
+        </article>
+        <article class="about-stat-card">
+            <span class="about-stat-card__label">活跃天数</span>
+            <strong class="about-stat-card__value">{{ $activeDays }}</strong>
+            <span class="about-stat-card__meta">天有更新</span>
+        </article>
+        <article class="about-stat-card">
+            <span class="about-stat-card__label">首次发布</span>
+            <strong class="about-stat-card__value">{{ $firstPost.Date.Format "2006" }}</strong>
+            <span class="about-stat-card__meta">{{ $firstPost.Date.Format "Jan 02" }}</span>
+        </article>
+        <article class="about-stat-card">
+            <span class="about-stat-card__label">最近更新</span>
+            <strong class="about-stat-card__value">{{ $latestPost.Date.Format "2006" }}</strong>
+            <span class="about-stat-card__meta">{{ $latestPost.Date.Format "Jan 02" }}</span>
+        </article>
+    </section>
+
+    <section class="about-heatmap">
+        <div class="about-heatmap__heading">
+            <h2>发布热力图</h2>
+        </div>
+
+        <div class="about-heatmap__chart-wrap">
+            <div id="heatmap" class="about-heatmap__chart" aria-label="博文热力图"></div>
+        </div>
+    </section>
+
+    <section class="about-distribution">
+        <div class="about-distribution__heading">
+            <h2>内容分布</h2>
+        </div>
+
+        <div class="about-bubble-cloud">
+            {{ range $tagItems }}
+                <a
+                    class="about-tag-bubble"
+                    data-weight="{{ .weight }}"
+                    href="{{ .permalink }}"
+                    style="--bubble-size: {{ .size }}rem;">
+                    <span class="about-tag-bubble__label">{{ .label }}</span>
+                    <small class="about-tag-bubble__count">{{ .count }} 篇</small>
+                </a>
+            {{ end }}
+        </div>
+    </section>
+</article>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.3.0/dist/echarts.min.js"></script>
+<script>
+    (() => {
+        const chartDom = document.getElementById("heatmap")
+        if (!chartDom || typeof echarts === "undefined") {
+            return
+        }
+
+        const rawData = {{ $heatmapItems | jsonify | safeJS }}
+        if (!rawData.length) {
+            return
+        }
+
+        const chart = echarts.init(chartDom)
+        const dataMap = new Map()
+
+        for (const item of rawData) {
+            const entries = dataMap.get(item.date) || []
+            entries.push(item)
+            dataMap.set(item.date, entries)
+        }
+
+        const data = []
+        let maxValue = 0
+
+        for (const [date, posts] of dataMap.entries()) {
+            let sum = 0
+            for (const post of posts) {
+                sum += post.wordCount
+            }
+
+            const value = Number((sum / 1000).toFixed(1))
+            maxValue = Math.max(maxValue, value)
+            data.push([date, value])
+        }
+
+        data.sort((a, b) => a[0].localeCompare(b[0]))
+
+        const firstDate = new Date(`${rawData[0].date}T00:00:00`)
+        const latestDate = new Date(`${rawData[rawData.length - 1].date}T00:00:00`)
+        const today = new Date()
+        const stale = today.getTime() - latestDate.getTime() > 45 * 24 * 3600 * 1000
+        const rangeAnchor = stale ? latestDate : today
+
+        const formatDate = (date) => echarts.format.formatTime("yyyy-MM-dd", date)
+        const shiftMonths = (baseDate, months) => {
+            const next = new Date(baseDate.getTime())
+            next.setMonth(next.getMonth() - months)
+            return next
+        }
+
+        const getRange = () => {
+            const width = window.innerWidth
+            const months = width >= 900 ? 12 : width >= 640 ? 9 : 6
+            const rangeStart = shiftMonths(rangeAnchor, months)
+            return [
+                formatDate(rangeStart < firstDate ? firstDate : rangeStart),
+                formatDate(rangeAnchor)
+            ]
+        }
+
+        const render = () => {
+            chart.setOption({
+                title: {
+                    top: 0,
+                    left: "center",
+                    text: "博文热力图"
+                },
+                tooltip: {
+                    hideDelay: 300,
+                    enterable: true,
+                    formatter: (params) => {
+                        const date = params.data[0]
+                        const posts = dataMap.get(date) || []
+                        let content = `${date}`
+
+                        for (const post of posts) {
+                            const wordCount = (post.wordCount / 1000).toFixed(1)
+                            content += `<br><a href="${post.link}">${post.title} | ${wordCount} 千字</a>`
+                        }
+
+                        return content
+                    }
+                },
+                visualMap: {
+                    min: 0,
+                    max: Math.max(1, Math.ceil(maxValue)),
+                    type: "piecewise",
+                    orient: "horizontal",
+                    left: "center",
+                    top: 30,
+                    splitNumber: 4,
+                    text: ["千字", ""],
+                    showLabel: true,
+                    itemGap: 20,
+                    inRange: {
+                        color: ["#7aa8744c", "#7AA874"]
+                    }
+                },
+                calendar: {
+                    top: 84,
+                    left: 32,
+                    right: 12,
+                    bottom: 12,
+                    cellSize: ["auto", 12],
+                    range: getRange(),
+                    itemStyle: {
+                        color: "#f1f1f1",
+                        borderWidth: 2.5,
+                        borderColor: "#fff"
+                    },
+                    yearLabel: { show: false },
+                    dayLabel: {
+                        margin: 10,
+                        firstDay: 0,
+                        nameMap: ["日", "", "", "三", "", "", "六"]
+                    },
+                    splitLine: {
+                        lineStyle: {
+                            color: "rgba(0, 0, 0, 0)"
+                        }
+                    }
+                },
+                series: {
+                    type: "heatmap",
+                    coordinateSystem: "calendar",
+                    data
+                }
+            }, true)
+
+            chart.resize()
+        }
+
+        let resizeTimer = 0
+        window.addEventListener("resize", () => {
+            if (resizeTimer) {
+                window.clearTimeout(resizeTimer)
+            }
+            resizeTimer = window.setTimeout(render, 120)
+        })
+
+        chart.on("click", (params) => {
+            if (params.componentType !== "series") {
+                return
+            }
+
+            const posts = dataMap.get(params.data[0]) || []
+            if (posts.length > 0) {
+                window.open(posts[0].link, "_blank")
+            }
+        })
+
+        render()
+    })()
+</script>
+
+{{ partialCached "footer/footer" . }}
+{{ end }}
