@@ -3,9 +3,149 @@
 */
 
 body.template-search main.main {
+    display: flex;
+    flex-direction: column;
     min-height: calc(100vh - var(--main-top-padding));
 }
 
 body.template-search footer.site-footer {
     margin-top: auto;
+}
+
+body.template-search .search-form {
+    margin-bottom: 1.5rem;
+}
+
+body.template-search .search-sphere-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    margin-bottom: 1.5rem;
+    transform-origin: center 46%;
+}
+
+body.template-search .search-sphere-panel[hidden] {
+    display: none !important;
+}
+
+body.template-search .search-sphere-panel.is-revealing {
+    animation: search-sphere-reveal 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.template-search .search-sphere-stage {
+    position: relative;
+    flex: 1;
+    min-height: clamp(28rem, 72vh, 52rem);
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    background:
+        radial-gradient(circle at center, rgba(var(--accent-color), 0.15), transparent 34%),
+        radial-gradient(circle at center, rgba(var(--accent-color), 0.08), transparent 58%),
+        radial-gradient(circle at center, rgba(255, 255, 255, 0.06), transparent 76%);
+    transform-origin: center center;
+}
+
+body.template-search .search-sphere-panel.is-dragging .search-sphere-stage {
+    cursor: grabbing;
+}
+
+body.template-search .search-sphere-panel.is-revealing .search-sphere-stage {
+    animation: search-sphere-stage-reveal 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body.template-search .search-sphere-tag {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 0.95rem;
+    border: 0;
+    border-radius: 999px;
+    white-space: nowrap;
+    font-size: 0.96rem;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--card-text-color-main);
+    transform-origin: center;
+    transition:
+        background-color 0.18s ease,
+        box-shadow 0.18s ease,
+        color 0.18s ease;
+    cursor: inherit;
+    visibility: hidden;
+}
+
+body.template-search .search-sphere-stage.is-ready .search-sphere-tag {
+    visibility: visible;
+}
+
+body.template-search .search-sphere-tag.is-tag {
+    background: rgba(var(--accent-color), 0.18);
+    box-shadow: 0 8px 22px rgba(var(--accent-color), 0.14);
+}
+
+body.template-search .search-sphere-tag.is-category {
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
+}
+
+body.template-search .search-sphere-tag:hover,
+body.template-search .search-sphere-tag:focus-visible {
+    color: #fff;
+    background: rgba(var(--accent-color), 0.92);
+    box-shadow: 0 12px 28px rgba(var(--accent-color), 0.26);
+    outline: none;
+}
+
+body.template-search .search-result {
+    margin-top: 0;
+}
+
+@keyframes search-sphere-reveal {
+    0% {
+        opacity: 0;
+        transform: scale(0.92);
+        filter: blur(14px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes search-sphere-stage-reveal {
+    0% {
+        opacity: 0;
+        transform: scale(0.84);
+    }
+
+    55% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (max-width: 768px) {
+    body.template-search .search-sphere-panel {
+        margin-bottom: 1rem;
+    }
+
+    body.template-search .search-sphere-stage {
+        min-height: 20rem;
+    }
+
+    body.template-search .search-sphere-tag {
+        padding: 0.4rem 0.7rem;
+        font-size: 0.82rem;
+    }
 }

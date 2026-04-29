@@ -5,6 +5,18 @@
     {{- end -}}
 {{ end }}
 {{ define "main" }}
+{{- $searchTopics := slice -}}
+{{- with .Site.Taxonomies.tags -}}
+    {{- range .ByCount -}}
+        {{- $searchTopics = $searchTopics | append (dict "label" .Page.Title "query" .Page.Title "type" "tag" "count" .Count) -}}
+    {{- end -}}
+{{- end -}}
+{{- with .Site.Taxonomies.categories -}}
+    {{- range .ByCount -}}
+        {{- $searchTopics = $searchTopics | append (dict "label" .Page.Title "query" .Page.Title "type" "category" "count" .Count) -}}
+    {{- end -}}
+{{- end -}}
+
 <form action="{{ .RelPermalink }}" class="search-form"{{ with .OutputFormats.Get "json" -}} data-json="{{ .RelPermalink }}"{{- end }}>
     <p>
         <label>搜索</label>
@@ -15,6 +27,14 @@
         {{ partial "helper/icon" "search" }}
     </button>
 </form>
+
+{{ if gt (len $searchTopics) 0 }}
+<section class="search-sphere-panel" data-search-tag-sphere>
+    <div class="search-sphere-stage" data-search-tag-sphere-stage aria-label="可交互标签球"></div>
+</section>
+
+<script id="search-tag-sphere-data" type="application/json">{{ $searchTopics | jsonify | safeHTML }}</script>
+{{ end }}
 
 <div class="search-result hidden">
     <h3 class="search-result--title section-title"></h3>
@@ -28,6 +48,10 @@
 {{- $opts := dict "minify" hugo.IsProduction "JSXFactory" "createElement" -}}
 {{- $searchScript := resources.Get "ts/search.tsx" | js.Build $opts -}}
 <script type="text/javascript" src="{{ $searchScript.RelPermalink }}" defer></script>
+{{ if gt (len $searchTopics) 0 }}
+{{- $searchTagSphereScript := resources.Get "ts/search-tag-sphere.ts" | js.Build (dict "minify" hugo.IsProduction) -}}
+<script type="text/javascript" src="{{ $searchTagSphereScript.RelPermalink }}" defer></script>
+{{ end }}
 
 {{ partialCached "footer/footer" . }}
 {{ end }}
