@@ -20,7 +20,7 @@ SortBy              = "default"
 [sidebar]
     emoji    = "🍥"
     subtitle = "Random Notes"
-    avatar   = "img/avatar.png"
+    avatar   = "img/duck.gif"
 
 [article]
     headingAnchor = false
